@@ -1,0 +1,337 @@
+<Datos><Nombre></Nombre><Icono>AA==</Icono><Version><Mayor>0</Mayor><Menor>0</Menor><Revision>0</Revision><AutoIncr>0</AutoIncr></Version><Info/><Contenido>$24ADV-
+Importar "PauscalW.prp"
+Clase c_Frm_MuestraBMP(pscForm)
+P$FAblico:
+
+  ClaseVar _
+    m_OpcArchivo:pscMenu
+  ClaseVar _
+    Abrirya:pscMenuItem, _
+    Guardar:pscMenuItem, _
+    OutofForm:pscMenuItem
+
+Privado:
+  Proc Init
+    X=0
+    Y=0
+    Ancho=500
+    Alto=500
+    Texto="Cargar Imagen..."
+    Visible=Verd
+    Habilitado=Verd
+    PuedeCambiarDeTama$F1o=Verd
+    BotonMaximizar=Verd
+    BotonMinimizar=Verd
+    MenuSistema=Verd
+    Centrar=Falso
+    Borde=Verd
+    Eval Eventos
+    FinEval
+    CrearForm
+    Crear m_OpcArchivo
+    Eval m_OpcArchivo
+      .NuevoItem
+      Abrirya=.Items[0]
+      .Items[0].Texto="&amp;Cargar Imagen"
+      .Items[0].Eventos.AlSeleccionar@=f0_Abrirya_AlSeleccionar@
+      .NuevoItem
+      Guardar=.Items[1]
+      .Items[1].Texto="&amp;Guardar como..."
+      .Items[1].Eventos.AlSeleccionar@=f0_Guardar_AlSeleccionar@
+      .NuevoItem
+      OutofForm=.Items[2]
+      .Items[2].Texto="&amp;Salir"
+      .Items[2].Eventos.AlSeleccionar@=f0_OutofForm_AlSeleccionar@
+    FinEval
+  FinProc
+P$FAblico:
+  Proc CargarForm
+    Si (hWnd=0)
+      Init
+      m_OpcArchivo.CargarMenu(hWnd)
+      FormCargado
+    FinSi
+  FinProc
+  Proc Mostrar(Opcional EsModal:Booleano)
+    CargarForm
+    Si (EsModal) MostrarModalInt; SiNo; MostrarInt
+  FinProc
+
+'Eventos
+
+  Proc Abrirya_AlSeleccionar() Adelantado
+  Proc Guardar_AlSeleccionar() Adelantado
+  Proc OutofForm_AlSeleccionar() Adelantado
+  Proc DevolverbyteEntero(EnteroEntrada,IndiceByte:Entero):Byte Adelantado
+
+
+FinClase
+
+'Alias
+
+Proc f0_Abrirya_AlSeleccionar()
+  Frm_MuestraBMP.Abrirya_AlSeleccionar
+FinProc
+Proc f0_Guardar_AlSeleccionar()
+  Frm_MuestraBMP.Guardar_AlSeleccionar
+FinProc
+Proc f0_OutofForm_AlSeleccionar()
+  Frm_MuestraBMP.OutofForm_AlSeleccionar
+FinProc
+
+
+Var Frm_MuestraBMP:c_Frm_MuestraBMP
+
+Proc CicloPrincipal
+  Crear Frm_MuestraBMP
+  Frm_MuestraBMP.CargarForm
+  Frm_MuestraBMP.Mostrar
+  Programa.Ejecutar
+FinProc
+
+
+'**************************************************
+
+'C$F3digo de eventos y procedimientos
+'definidos por el usuario
+
+Proc c_Frm_MuestraBMP.Abrirya_AlSeleccionar()
+'------Codigo para abrir imagen------------
+Var Imagen[],ImagenCargar[]:Byte
+Var pixAlto,pixAncho,offset,puntoy,puntox,p1,p2,p3,ExcesoBytes,controla:Entero
+Var Archivo:pscArchivo
+Var Dialogo:pscDialogo
+Crear Dialogo
+Dialogo.Filtro  = "Mapa de bits (*.bmp)|*.bmp"
+Dialogo.T$EDtulo  = "Abrir..."
+Si(Dialogo.MostrarAbrir()=Falso)Salir
+
+Borrar ImagenCargar
+Borrar Imagen
+Archivo = Nuevo pscArchivo
+Archivo.Nombre = dialogo.archivo
+Archivo.Abrir(0)
+Redim Preservar Imagen, Archivo.Tama$F1o
+Archivo.Leer(Imagen[0]@, Archivo.Tama$F1o)
+Archivo.Cerrar
+
+Si(Imagen[28]=24)
+'Este codigo se ejecuta si la profundidad de color de
+'La imagen es de 24 bits
+pixAncho=(Imagen[18])+(Imagen[19]*(2^8))+(Imagen[20]*((2^8)^2))+(Imagen[21]*((2^8)^3))
+pixAlto=(Imagen[22])+(Imagen[23]*(2^8))+(Imagen[24]*((2^8)^2))+(Imagen[25]*((2^8)^3))
+offset=(Imagen[10])+(Imagen[11]*(2^8))+(Imagen[12]*((2^8)^2))+(Imagen[13]*((2^8)^3))
+
+ExcesoBytes = pixAncho Mod 4 
+'si el ancho no es divisible exactamente
+'entre 4 se le agregan bytes al final
+'de cada linea iguales al residuo
+'Estos Bytes extra valen 0 y no 
+'forman parte de la imagen
+
+Contar puntoy = pixAlto a 1 Dec
+ Contar puntox = 1 a pixAncho
+ Si(offset+2&lt;=LongMat(Imagen)-1)
+  p1 = Imagen[offset]   'Byte Azul
+  p2 = Imagen[offset+1] 'Byte Verde
+  p3 = Imagen[offset+2] 'Byte Rojo
+  ZonaDibujo.PonerPixel(puntox, puntoy, RGB(p3,p2,p1))
+  Si(puntox=pixAncho)
+    offset = offset + 3 + ExcesoBytes
+  SiNo
+    offset = offset + 3
+  FinSi
+ FinSi
+ Seguir
+Seguir
+SiNo
+Mensaje("Solo Imagenes de 24 bits")
+FinSi
+FinProc
+
+Proc c_Frm_MuestraBMP.Guardar_AlSeleccionar()
+'-----Codigo para guardar BMP de 24 Bits-------------
+Var R,G,B, Data[]:Byte
+Var px,py,s, IWidth,IHeight:EnteroSig, Archivo:PscArchivo
+Var ExcesoBytes,tama$F1o_en_Bytes_de_imagen,tama$F1o_en_Bytes_de_encabezado,Longitud_Data:Entero
+Var a:Entero, Dialogo:pscDialogo
+
+'------------------------------------------------
+IWidth  = 400  'Ancho de la imagen a guardar
+IHeight = 400  'Alto de la imagen a guardar
+'------------------------------------------------
+Crear Dialogo
+Dialogo.Filtro  = "Mapa de bits (*.bmp)|*.bmp|Todos los archivos (*.*)|*.*"
+Dialogo.T$EDtulo  = "Guardar"
+Si(Dialogo.MostrarGuardar()=Falso)Salir
+ExcesoBytes = IWidth Mod 4
+tama$F1o_en_Bytes_de_imagen = (IWidth*IHeight*3)+ (ExcesoBytes*IHeight)
+tama$F1o_en_Bytes_de_encabezado = 54
+Longitud_Data=tama$F1o_en_Bytes_de_imagen + tama$F1o_en_Bytes_de_encabezado
+
+Borrar data
+s=0
+Redim data,Longitud_Data
+
+Data[0] = 66 'B
+Data[1] = 77 'M
+Data[2] = DevolverbyteEntero(Longitud_Data,0) 'Tamano del archivo
+Data[3] = DevolverbyteEntero(Longitud_Data,1) '
+Data[4] = DevolverbyteEntero(Longitud_Data,2) '
+Data[5] = DevolverbyteEntero(Longitud_Data,3) '
+Data[6] = 0 ' Reservado 1
+Data[7] = 0 ' 
+Data[8] = 0 ' Reservado 2
+Data[9] = 0 ' 
+Data[10] = 54 ' Numero de bytes para el comienzo de los datos de imagen(Offset)
+Data[11] = 0 '
+Data[12] = 0 '
+Data[13] = 0 '
+Data[14] = 40 ' Tamano del encabezado (40 para Win 3.1 o 12 para OS/2)
+Data[15] = 0 '
+Data[16] = 0 '
+Data[17] = 0 '
+Data[18] = DevolverbyteEntero(IWidth,0) 'Ancho en pixeles
+Data[19] = DevolverbyteEntero(IWidth,1) '
+Data[20] = DevolverbyteEntero(IWidth,2) '
+Data[21] = DevolverbyteEntero(IWidth,3) '
+Data[22] = DevolverbyteEntero(IHeight,0) 'Alto en pixeles
+Data[23] = DevolverbyteEntero(IHeight,1) '
+Data[24] = DevolverbyteEntero(IHeight,2) '
+Data[25] = DevolverbyteEntero(IHeight,3) '
+Data[26] = 1 ' Numero de Planos (debe ser 1)
+Data[27] = 0 '
+Data[28] = 24 ' Numero de bits por pixel (24 para 24 bits)
+Data[29] = 0 '
+Data[30] = 0 'Compresion - 0 significa sin Compresion, 1,2 son RLES
+Data[31] = 0 '
+Data[32] = 0 '
+Data[33] = 0 '
+Data[34] = DevolverbyteEntero(tama$F1o_en_Bytes_de_imagen,0) ' Tamano de la imagen en bytes(sin encabezado)
+Data[35] = DevolverbyteEntero(tama$F1o_en_Bytes_de_imagen,1) '
+Data[36] = DevolverbyteEntero(tama$F1o_en_Bytes_de_imagen,2) '
+Data[37] = DevolverbyteEntero(tama$F1o_en_Bytes_de_imagen,3) '
+Data[38] = 0 'Ancho en Pels Per Metre
+Data[39] = 0 '
+Data[40] = 0 '
+Data[41] = 0 '
+Data[42] = 0 'Alto en Pels Per Metre
+Data[43] = 0 '
+Data[44] = 0 '
+Data[45] = 0 '
+Data[46] = 0 '(0) Numero de colores usados, 0 es todos
+Data[47] = 0 '
+Data[48] = 0 '
+Data[49] = 0 '
+Data[50] = 0 '(0) Numero de colores importantes, 0 es todos
+Data[51] = 0 '
+Data[52] = 0 '
+Data[53] = 0 '
+
+Archivo = Nuevo PscArchivo
+Archivo.Nombre = quitarextensi$F3n(dialogo.archivo)+".bmp"
+Archivo.CrearNuevo(Verd)
+
+s = tama$F1o_en_Bytes_de_encabezado
+
+Contar py = IHeight a 1 Dec
+  Contar px = 1 a IWidth
+   ObtenerRGB(ZonaDibujo.DevolverPixel(px,py), R, G, B)
+
+   Data[s]   = B 'Byte Azul
+   Data[s+1] = G 'Byte Verde
+   Data[s+2] = R 'Byte Rojo
+
+  Si(px=IWidth)
+       s = s + 3 + ExcesoBytes
+  SiNo
+     s = s + 3
+  FinSi
+  Seguir
+Seguir
+
+Archivo.Escribir(Data[0]@,LongMat(data))
+Archivo.Cerrar
+FinProc
+
+Proc c_Frm_MuestraBMP.DevolverbyteEntero(EnteroEntrada,IndiceByte:Entero):Byte
+'En Pauscal existe una funcion llamada EntHex
+'Que convierte un numero entero a Hexadecimal
+'Pero el valor devuelto es de tipo cadena
+'y se requiere un valor entero para guardarlo
+'como byte.
+' Ejemplo: Si convertimos 3569 a hexadecimal
+' obtendremos 00000DF1. Para verlo mejor 
+' dividamoslo en pares, en donde cada pareja
+' corresponderia a un byte 
+' 00-00-0D-F1
+' Si observamos de derecha a izquierda
+' El Byte menos significativo es F1 el que le sigue
+' es 0D y los ultimos dos que son los mas significativos
+' tienen como valor 0
+' Ahora procederemos a obtener el valor para cada
+' Byte usando IndiceByte como indice
+' para indicar que par de numeros
+' Hexadecimal queremos, comenzando por el cero.
+'         -------------------
+'         Indice 3  2  1  0
+'         Numero 00-00-0D-F1
+'         -------------------
+' Y posteriormente lo convertimos a decimal
+'----------------------------------------------------------
+'Creamos una matriz con los valores correspondientes
+'del 0-9-A-F para compararlos con los caracteres
+'que obtendremos mediante la funcion EntHex
+Var ValorHex:Cadena 'Variable para guardar el Par Hexadecimal-Byte
+Var MatrizCar[],retornar,ciclos:Entero
+Redim MatrizCar,16
+'Usando la funcion Carac() con
+'los siguentes valores
+'obtendremos los caracteres
+'necesarios para comparar
+MatrizCar[0]=48 '0 
+MatrizCar[1]=49 '1
+MatrizCar[2]=50 '2
+MatrizCar[3]=51 '3
+MatrizCar[4]=52 '4
+MatrizCar[5]=53 '5
+MatrizCar[6]=54 '6
+MatrizCar[7]=55 '7
+MatrizCar[8]=56 '8
+MatrizCar[9]=57 '9
+MatrizCar[10]=65 'A
+MatrizCar[11]=66 'B
+MatrizCar[12]=67 'C
+MatrizCar[13]=68 'D
+MatrizCar[14]=69 'E
+MatrizCar[15]=70 'F
+
+'Ahora Obtendremos el par de letras en hexadecimal 
+'que corresponden a un Byte
+
+ValorHex = ParteCad(EntHex(EnteroEntrada,Verd),7-(IndiceByte*2),2)
+Contar ciclos=0 a 15
+' Comparando letra por letra del 0-9 y A-F
+' obtendremos el valor en decimal del numero menos significativo
+' de nuestra pareja en hexadecimal
+  Si(DerechaCad(ValorHex,1)=Carac(MatrizCar[ciclos]))
+   retornar=ciclos
+  FinSi
+Seguir
+Contar ciclos=0 a 15
+ Si(IzquierdaCad(ValorHex,1)=Carac(MatrizCar[ciclos]))
+' Ahora del mas significativo y los sumamos para finalmente
+' Obtener el valor del Byte segun el indice 
+   retornar=retornar+(ciclos*16)
+ FinSi
+Seguir
+Devolver retornar
+FinProc
+
+Proc c_Frm_MuestraBMP.OutofForm_AlSeleccionar()
+Programa.Terminar
+FinProc
+
+CicloPrincipal
+Fin
+</Contenido></Datos>
